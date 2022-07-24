@@ -1,0 +1,8 @@
+[package]
+name = "slint-ui-testing"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+slint = "0.2.*"
+rusqlite = { version = "0.28.*", features = ["bundled"] }
