@@ -6,7 +6,7 @@ use rusqlite::{Connection, Result};
 
 slint::slint! {
     import { SpinBox, Button, CheckBox, Slider, LineEdit, ScrollView, ListView,
-        HorizontalBox, VerticalBox, StandardButton, GridBox } from "std-widgets.slint";
+        HorizontalBox, VerticalBox, TabWidget, GridBox } from "std-widgets.slint";
 
     export struct Data := {
         grid-col: int,
@@ -35,44 +35,70 @@ slint::slint! {
         preferred-width: 400px;
         preferred-height: 600px;
         property <[Data]> model: [];
+
         property <int> range-select-started-from: -1;
         callback range-select(int, int, bool);
-        for it[ind] in model:
-            rect := Rectangle {
-                property <bool> selected: false;
-                x: it.grid-col * txt.preferred-width * 1.4; // FIXed: Just use the pre-count values
-                y: it.grid-row * 20px;
-                height: txt.preferred-height * 1.1;
-                width: txt.preferred-width * 1.1;
-                border-width: 1px;
-                background: white;
-                txt := Text {
-                    text: model[ind].uid;
-                    visible: true;
-                    color: it.selected ? red : black;
-                }
-                touch := TouchArea { clicked => {
-                    if (it.selected) {
-                        it.selected = false;
-                        range-select-started-from = -1;
-                    } else {
-                        if (range-select-started-from == -1) {
-                            range-select-started-from = ind;
-                            it.selected = true;
-                        } else if (range-select-started-from != -1) {
-                            range-select(range-select-started-from, ind, true);
-                            range-select-started-from = -1;
+        TabWidget {
+            Tab {
+            title: "Uids";
+                VerticalBox {
+              HorizontalBox {
+                Button { text: "Start"; }
+                Button { text: "Stop"; }
+                Button { text: "Cleanup Selection"; }
+                Button { text: "Delete Selection"; }
+              }
+                ScrollView {
+                    width: 400px;
+                    height: 600px;
+                    viewport-width: 200px;
+                    viewport-height: 200px;
+                for it[ind] in model:
+                    rect := Rectangle {
+                        property <bool> selected: false;
+                        x: it.grid-col * txt.preferred-width * 1.4; // FIXed: Just use the pre-count values
+                        y: it.grid-row * 20px;
+                        height: txt.preferred-height * 1.1;
+                        width: txt.preferred-width * 1.1;
+                        border-width: 1px;
+                        background: white;
+                        txt := Text {
+                            text: model[ind].uid;
+                            visible: true;
+                            color: it.selected ? red : black;
                         }
+                        touch := TouchArea { clicked => {
+                            if (it.selected) {
+                                it.selected = false;
+                                range-select-started-from = -1;
+                            } else {
+                                if (range-select-started-from == -1) {
+                                    range-select-started-from = ind;
+                                    it.selected = true;
+                                } else if (range-select-started-from != -1) {
+                                    range-select(range-select-started-from, ind, true);
+                                    range-select-started-from = -1;
+                                }
+                            }
+                        }
+                                                        }
+                        states [
+                            //pressed when touch.pressed: { selected: true; }
+                            mouse-over when touch.has-hover: {
+                                rect.background: lightgrey;
+                            }
+                        ]
                     }
                 }
-                                                }
-                states [
-                    //pressed when touch.pressed: { selected: true; }
-                    mouse-over when touch.has-hover: {
-                        rect.background: lightgrey;
-                    }
-                ]
+        }
             }
+        Tab {
+            title: "Config";
+            Rectangle { background: lightgray;
+
+                }
+        }
+        }
     }
 }
 thread_local! {
@@ -99,6 +125,7 @@ pub fn main() {
             range = b as usize ..=e as usize;
         }
         let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
+        let m = model_handle.clone().filter(|m|{m.selected});
         for i in range {
             let data_maybe: Option<Data> = model.row_data(i as usize);
             if let Some(mut data) = data_maybe {
@@ -108,6 +135,7 @@ pub fn main() {
                 dbg!("failed update ind:", i);
             }
         }
+        let selected_filter = model_handle.clone().filter(|m|{m.selected});
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     timer.start(TimerMode::Repeated, std::time::Duration::from_millis(200), move || {
