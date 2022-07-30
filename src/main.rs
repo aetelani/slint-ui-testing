@@ -1,5 +1,5 @@
-use std::ops::{Deref, RangeInclusive};
 // Copyright (C) 2022 Anssi Eteläniemi <aetelani@hotmail.com>
+use std::ops::{Deref, RangeInclusive};
 use slint::{FilterModel, Model, ModelExt, ModelRc, RenderingNotifier, VecModel};
 use slint::{Timer, TimerMode};
 use rusqlite::{Connection, Result};
@@ -29,11 +29,11 @@ slint::slint! {
         color: touch.pressed ? #fff : #eee;
     }
     touch := TouchArea { }
-}
+    }
 
     MainWindow := Window {
-        preferred-width: 400px;
-        preferred-height: 600px;
+        //preferred-width: 400px;
+        //preferred-height: 600px;
         property <[Data]> model: [];
 
         property <int> range-select-started-from: -1;
@@ -48,16 +48,16 @@ slint::slint! {
                 Button { text: "Cleanup Selection"; }
                 Button { text: "Delete Selection"; }
               }
-                ScrollView {
-                    width: 400px;
-                    height: 600px;
-                    viewport-width: 200px;
-                    viewport-height: 200px;
+                sv := ScrollView {
+                    preferred-width: 400px;
+                    preferred-height: 600px;
+                    viewport-width: 400px;
+                    viewport-height: 600px;
                 for it[ind] in model:
                     rect := Rectangle {
                         property <bool> selected: false;
                         x: it.grid-col * txt.preferred-width * 1.4; // FIXed: Just use the pre-count values
-                        y: it.grid-row * 20px;
+                        y: { sv.viewport-height = it.grid-row * 20px; it.grid-row * 20px }
                         height: txt.preferred-height * 1.1;
                         width: txt.preferred-width * 1.1;
                         border-width: 1px;
@@ -81,17 +81,16 @@ slint::slint! {
                                 }
                             }
                         }
-                                                        }
-                        states [
-                            //pressed when touch.pressed: { selected: true; }
-                            mouse-over when touch.has-hover: {
-                                rect.background: lightgrey;
-                            }
-                        ]
+                    }
+                    states [
+                        mouse-over when touch.has-hover: {
+                            rect.background: lightgrey;
+                        }
+                    ]
                     }
                 }
-        }
             }
+        }
         Tab {
             title: "Config";
             Rectangle { background: lightgray;
@@ -105,6 +104,8 @@ thread_local! {
     static CONN: Connection = Connection::open_in_memory().unwrap();
 }
 
+#[cfg_attr(target_arch = "wasm32-wasi",
+wasm_bindgen::prelude::wasm_bindgen(start))]
 pub fn main() {
     let handle: MainWindow = MainWindow::new();
     let handle_weak = handle.as_weak();
@@ -135,7 +136,6 @@ pub fn main() {
                 dbg!("failed update ind:", i);
             }
         }
-        let selected_filter = model_handle.clone().filter(|m|{m.selected});
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     timer.start(TimerMode::Repeated, std::time::Duration::from_millis(200), move || {
