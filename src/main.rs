@@ -45,7 +45,7 @@ slint::slint! {
         callback selection(int) -> int;
         info-show(ind,posx,posy) => { info.text = ind + ":(" + posx/1px + "," + posy/1px  + ")"; }
         info-hide() => { info.text = ""; }
-        info-show-range(begin, end) => { info.text = "Selected: " + abs(end - begin + 1); }
+        info-show-range(begin, end) => { info.text = "Range of: " + abs(end - begin + 1); }
         TabWidget {
             Tab {
             title: "Uids";
@@ -55,6 +55,7 @@ slint::slint! {
                 Button { text: "Stop"; clicked() => { running(false); } }
                 Button { text: "Cleanup Selection"; clicked() => { info.text = "Cleaned: " + selection(0); } }
                 Button { text: "Delete Selection"; clicked() => { info.text = "Deleted: " + selection(1); } }
+                Button { text: "Count Selected"; clicked() => { info.text = "Total Selected: " + selection(2); } }
                 info := Text { height: 50px; width: 100px; }
               }
                 sv := ScrollView {
@@ -162,7 +163,7 @@ pub fn main() {
     handle_clone.unwrap().on_running(move |v| { if v { timer.restart(); } else { timer.stop() } });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     handle_clone.unwrap().on_selection(move |v| {
-        let mut return_count = 0;
+        let mut return_count:i32 = 0;
         if v == 0 { // Unselect
             let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
             let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
@@ -187,6 +188,10 @@ pub fn main() {
                 return_count += 1;
             }
             // Gaps in the list. Redo or repaint
+        } else if v == 2 { // Count selected
+            let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
+            let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
+            return_count = model.iter().enumerate().filter(|v| v.1.selected).count() as i32;
         }
         return_count
 
