@@ -6,7 +6,7 @@ use rusqlite::{Connection, Result};
 
 slint::slint! {
     import { SpinBox, Button, CheckBox, Slider, LineEdit, ScrollView, ListView,
-        HorizontalBox, VerticalBox, TabWidget, GridBox } from "std-widgets.slint";
+        HorizontalBox, VerticalBox, TabWidget } from "std-widgets.slint";
 
     export struct Data := {
         grid-col: int,
@@ -38,15 +38,24 @@ slint::slint! {
 
         property <int> range-select-started-from: -1;
         callback range-select(int, int, bool);
+        callback info-show(int, length, length);
+        callback info-hide();
+        callback info-show-range(int, int);
+        callback running(bool);
+        callback selection(int);
+        info-show(ind,posx,posy) => { info.text = ind + ":(" + posx/1px + "," + posy/1px  + ")"; }
+        info-hide() => { info.text = ""; }
+        info-show-range(begin, end) => { info.text = "Selected: " + abs(end - begin + 1); }
         TabWidget {
             Tab {
             title: "Uids";
                 VerticalBox {
               HorizontalBox {
-                Button { text: "Start"; }
-                Button { text: "Stop"; }
-                Button { text: "Cleanup Selection"; }
-                Button { text: "Delete Selection"; }
+                Button { text: "Start"; clicked() => { running(true); } }
+                Button { text: "Stop"; clicked() => { running(false); } }
+                Button { text: "Cleanup Selection"; clicked() => { selection(0); } }
+                Button { text: "Delete Selection"; clicked() => { selection(1); } }
+                info := Text { height: 50px; width: 100px; }
               }
                 sv := ScrollView {
                     preferred-width: 400px;
@@ -56,7 +65,7 @@ slint::slint! {
                 for it[ind] in model:
                     rect := Rectangle {
                         property <bool> selected: false;
-                        x: it.grid-col * txt.preferred-width * 1.4; // FIXed: Just use the pre-count values
+                        x: it.grid-col * 100px;
                         y: { sv.viewport-height = it.grid-row * 20px; it.grid-row * 20px }
                         height: txt.preferred-height * 1.1;
                         width: txt.preferred-width * 1.1;
@@ -71,12 +80,15 @@ slint::slint! {
                             if (it.selected) {
                                 it.selected = false;
                                 range-select-started-from = -1;
+                                info-hide();
                             } else {
                                 if (range-select-started-from == -1) {
                                     range-select-started-from = ind;
                                     it.selected = true;
+                                    info-show(ind, rect.x, rect.y);
                                 } else if (range-select-started-from != -1) {
                                     range-select(range-select-started-from, ind, true);
+                                    info-show-range(range-select-started-from, ind);
                                     range-select-started-from = -1;
                                 }
                             }
@@ -84,7 +96,7 @@ slint::slint! {
                     }
                     states [
                         mouse-over when touch.has-hover: {
-                            rect.background: lightgrey;
+                            rect.background: { lightgrey };
                         }
                     ]
                     }
@@ -111,7 +123,6 @@ pub fn main() {
     let handle_weak = handle.as_weak();
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     let timer = Timer::default();
-    let mut count: usize = 0;
     let mut row: i32 = 0;
     let mut col: i32 = 0;
     let max_growth = 5usize;
@@ -126,7 +137,6 @@ pub fn main() {
             range = b as usize ..=e as usize;
         }
         let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
-        let m = model_handle.clone().filter(|m|{m.selected});
         for i in range {
             let data_maybe: Option<Data> = model.row_data(i as usize);
             if let Some(mut data) = data_maybe {
@@ -141,12 +151,26 @@ pub fn main() {
     timer.start(TimerMode::Repeated, std::time::Duration::from_millis(200), move || {
         let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
         let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
+        let count: usize = model.row_count();
         model.push(Data{ selected: false, grid_col:col as i32, grid_row: row, uid: format!("{0:08x}", count).into()});
         if count % max_growth == max_growth - 1 { row += 1; col = 0; }
         else { col += 1; }
         ticket_encoded(count);
-        count += 1;
     });
+    let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
+    handle_clone.unwrap().on_running(move |v| { if v { timer.restart(); } else { timer.stop() } });
+    let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
+    handle_clone.unwrap().on_selection(move |v| { if v == 0 { // Unselect
+        let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
+        let m = model_handle.clone().filter(|m|{m.selected});
+        let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
+        for i in 0..model.row_count() {
+            let mut data = model.row_data(i).unwrap();
+            data.selected = false;
+            model.set_row_data(i, data);
+        }
+    } else { } });
+
     handle.run();
 }
 
