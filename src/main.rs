@@ -42,7 +42,7 @@ slint::slint! {
         callback info-hide();
         callback info-show-range(int, int);
         callback running(bool);
-        callback selection(int);
+        callback selection(int) -> int;
         info-show(ind,posx,posy) => { info.text = ind + ":(" + posx/1px + "," + posy/1px  + ")"; }
         info-hide() => { info.text = ""; }
         info-show-range(begin, end) => { info.text = "Selected: " + abs(end - begin + 1); }
@@ -53,8 +53,8 @@ slint::slint! {
               HorizontalBox {
                 Button { text: "Start"; clicked() => { running(true); } }
                 Button { text: "Stop"; clicked() => { running(false); } }
-                Button { text: "Cleanup Selection"; clicked() => { selection(0); } }
-                Button { text: "Delete Selection"; clicked() => { selection(1); } }
+                Button { text: "Cleanup Selection"; clicked() => { info.text = "Cleaned: " + selection(0); } }
+                Button { text: "Delete Selection"; clicked() => { info.text = "Deleted: " + selection(1); } }
                 info := Text { height: 50px; width: 100px; }
               }
                 sv := ScrollView {
@@ -125,6 +125,7 @@ pub fn main() {
     let timer = Timer::default();
     let mut row: i32 = 0;
     let mut col: i32 = 0;
+    let mut count: usize = 0;
     let max_growth = 5usize;
     create_tables();
     handle_clone.unwrap().on_range_select(move |b: i32, e: i32, mode: bool|{
@@ -151,25 +152,45 @@ pub fn main() {
     timer.start(TimerMode::Repeated, std::time::Duration::from_millis(200), move || {
         let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
         let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
-        let count: usize = model.row_count();
         model.push(Data{ selected: false, grid_col:col as i32, grid_row: row, uid: format!("{0:08x}", count).into()});
         if count % max_growth == max_growth - 1 { row += 1; col = 0; }
         else { col += 1; }
+        count += 1;
         ticket_encoded(count);
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     handle_clone.unwrap().on_running(move |v| { if v { timer.restart(); } else { timer.stop() } });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
-    handle_clone.unwrap().on_selection(move |v| { if v == 0 { // Unselect
-        let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
-        let m = model_handle.clone().filter(|m|{m.selected});
-        let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
-        for i in 0..model.row_count() {
-            let mut data = model.row_data(i).unwrap();
-            data.selected = false;
-            model.set_row_data(i, data);
+    handle_clone.unwrap().on_selection(move |v| {
+        let mut return_count = 0;
+        if v == 0 { // Unselect
+            let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
+            let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
+            for i in 0..model.row_count() {
+                let mut data = model.row_data(i).unwrap();
+                if data.selected {
+                    data.selected = false;
+                    model.set_row_data(i, data);
+                    return_count += 1;
+                }
+            }
+        } else if v == 1 { // Remove
+            let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
+            let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
+            let mut idx: Vec<usize> = vec![];
+            for (i,v) in model.iter().enumerate().filter(|v| v.1.selected) {
+                idx.push(i);
+            }
+            idx.reverse();
+            for i in idx {
+                model.remove(i);
+                return_count += 1;
+            }
+            // Gaps in the list. Redo or repaint
         }
-    } else { } });
+        return_count
+
+    });
 
     handle.run();
 }
