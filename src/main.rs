@@ -179,9 +179,7 @@ pub fn main() {
             let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
             let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
             let mut idx: Vec<usize> = vec![];
-            for (i,v) in model.iter().enumerate().filter(|v| v.1.selected) {
-                idx.push(i);
-            }
+            model.iter().enumerate().filter(|v| v.1.selected).for_each(|(i,_)| idx.push(i));
             idx.reverse();
             for i in idx {
                 model.remove(i);
