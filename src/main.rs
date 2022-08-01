@@ -9,6 +9,10 @@ slint::slint! {
     import { SpinBox, Button, CheckBox, Slider, LineEdit, ScrollView, ListView,
         HorizontalBox, VerticalBox, TabWidget } from "std-widgets.slint";
 
+    export global Logic := {
+        callback hide-rows(int, int);
+    }
+
     export struct Data := {
         grid-col: int,
         grid-row: int,
@@ -64,12 +68,15 @@ slint::slint! {
                     preferred-width: 400px;
                     preferred-height: 600px;
                     viewport-width: 400px;
-                    //viewport-height: 600px;
+                    viewport-y: is-running? viewport-height * -1 + 100px : 0px;
                 for it[ind] in model:
                     rect := Rectangle {
                         property <bool> selected: false;
                         x: it.grid-col * 100px;
-                        y: { sv.viewport-height = it.grid-row * 20px; it.grid-row * 20px }
+                        y: {
+                                sv.viewport-height = it.grid-row * 20px;
+                                Logic.hide-rows(0, it.grid-row - 20);
+                                it.grid-row * 20px }
                         height: txt.height * 1.1;
                         width: txt.width * 1.1;
                         border-width: 1px;
