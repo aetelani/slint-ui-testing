@@ -79,7 +79,7 @@ slint::slint! {
                             visible: true;
                             color: it.selected ? red : black;
                         }
-                        if !is-running: touch := TouchArea { clicked => {
+                        touch := TouchArea { clicked => {
                             if (it.selected) {
                                 it.selected = false;
                                 range-select-started-from = -1;
@@ -97,11 +97,11 @@ slint::slint! {
                             }
                         }
                     }
-                    /*states [
+                    states [
                         mouse-over when touch.has-hover: {
                             rect.background: { lightgrey };
                         }
-                    ]*/
+                    ]
                     }
                 }
             }
@@ -163,7 +163,7 @@ pub fn main() {
         ticket_encoded(count);
         let diff= SystemTime::now().duration_since(start_ts).unwrap().as_millis() as usize;
         start_ts = SystemTime::now();
-        println!("{diff}ms/paint");
+        println!("{count} @ {diff}ms/paint");
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     handle_clone.unwrap().on_running(move |v| { if v { timer.restart(); } else { timer.stop() } });
