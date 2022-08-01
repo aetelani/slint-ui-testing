@@ -64,14 +64,14 @@ slint::slint! {
                     preferred-width: 400px;
                     preferred-height: 600px;
                     viewport-width: 400px;
-                    viewport-height: 600px;
+                    //viewport-height: 600px;
                 for it[ind] in model:
                     rect := Rectangle {
                         property <bool> selected: false;
                         x: it.grid-col * 100px;
                         y: { sv.viewport-height = it.grid-row * 20px; it.grid-row * 20px }
-                        //height: txt.preferred-height * 1.1;
-                        //width: txt.preferred-width * 1.1;
+                        height: txt.height * 1.1;
+                        width: txt.width * 1.1;
                         border-width: 1px;
                         background: white;
                         txt := Text {
@@ -97,11 +97,11 @@ slint::slint! {
                             }
                         }
                     }
-                    states [
-                        mouse-over when touch.has-hover: {
-                            rect.background: { lightgrey };
-                        }
-                    ]
+                        states [
+                            mouse-over when touch.has-hover: {
+                                background: { lightgrey };
+                            }
+                        ]
                     }
                 }
             }
@@ -151,19 +151,26 @@ pub fn main() {
             }
         }
     });
-    let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     let mut start_ts = SystemTime::now();
-    timer.start(TimerMode::Repeated, std::time::Duration::from_millis(20), move || {
+    let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
+    let mut insert_data = move || {
         let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
         let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
         model.push(Data{ selected: false, grid_col:col as i32, grid_row: row, uid: format!("{0:08x}", count).into()});
         if count % max_growth == max_growth - 1 { row += 1; col = 0; }
         else { col += 1; }
         count += 1;
-        ticket_encoded(count);
+        //ticket_encoded(count);
         let diff= SystemTime::now().duration_since(start_ts).unwrap().as_millis() as usize;
         start_ts = SystemTime::now();
         println!("{count} @ {diff}ms/paint");
+    };
+    for _ in 0..900 {
+        let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
+        insert_data();
+    }
+    timer.start(TimerMode::Repeated, std::time::Duration::from_millis(200), move || {
+        insert_data();
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     handle_clone.unwrap().on_running(move |v| { if v { timer.restart(); } else { timer.stop() } });
