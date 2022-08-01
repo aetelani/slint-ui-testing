@@ -10,7 +10,7 @@ slint::slint! {
         HorizontalBox, VerticalBox, TabWidget } from "std-widgets.slint";
 
     export global Logic := {
-        callback hide-rows(int, int);
+        callback model-remove-rows(int, int);
     }
 
     export struct Data := {
@@ -75,7 +75,7 @@ slint::slint! {
                         x: it.grid-col * 100px;
                         y: {
                                 sv.viewport-height = it.grid-row * 20px;
-                                Logic.hide-rows(0, it.grid-row - 20);
+                                Logic.model-remove-rows(0, it.grid-row - 20); // TODO Remove from model if not visible
                                 it.grid-row * 20px }
                         height: txt.height * 1.1;
                         width: txt.width * 1.1;
