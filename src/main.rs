@@ -1,5 +1,6 @@
 // Copyright (C) 2022 Anssi Eteläniemi <aetelani@hotmail.com>
 use std::ops::{Deref, RangeInclusive};
+use std::time::SystemTime;
 use slint::{FilterModel, Model, ModelExt, ModelRc, RenderingNotifier, VecModel};
 use slint::{Timer, TimerMode};
 use rusqlite::{Connection, Result};
@@ -42,6 +43,7 @@ slint::slint! {
         callback info-hide();
         callback info-show-range(int, int);
         callback running(bool);
+        property<bool> is-running: true;
         callback selection(int) -> int;
         info-show(ind,posx,posy) => { info.text = ind + ":(" + posx/1px + "," + posy/1px  + ")"; }
         info-hide() => { info.text = ""; }
@@ -51,8 +53,8 @@ slint::slint! {
             title: "Uids";
                 VerticalBox {
               HorizontalBox {
-                Button { text: "Start"; clicked() => { running(true); } }
-                Button { text: "Stop"; clicked() => { running(false); } }
+                Button { text: "Start"; clicked() => { is-running = true; running(true); } }
+                Button { text: "Stop"; clicked() => { is-running = false; running(false); } }
                 Button { text: "Cleanup Selection"; clicked() => { info.text = "Cleaned: " + selection(0); } }
                 Button { text: "Delete Selection"; clicked() => { info.text = "Deleted: " + selection(1); } }
                 Button { text: "Count Selected"; clicked() => { info.text = "Total Selected: " + selection(2); } }
@@ -68,8 +70,8 @@ slint::slint! {
                         property <bool> selected: false;
                         x: it.grid-col * 100px;
                         y: { sv.viewport-height = it.grid-row * 20px; it.grid-row * 20px }
-                        height: txt.preferred-height * 1.1;
-                        width: txt.preferred-width * 1.1;
+                        //height: txt.preferred-height * 1.1;
+                        //width: txt.preferred-width * 1.1;
                         border-width: 1px;
                         background: white;
                         txt := Text {
@@ -77,7 +79,7 @@ slint::slint! {
                             visible: true;
                             color: it.selected ? red : black;
                         }
-                        touch := TouchArea { clicked => {
+                        if !is-running: touch := TouchArea { clicked => {
                             if (it.selected) {
                                 it.selected = false;
                                 range-select-started-from = -1;
@@ -95,11 +97,11 @@ slint::slint! {
                             }
                         }
                     }
-                    states [
+                    /*states [
                         mouse-over when touch.has-hover: {
                             rect.background: { lightgrey };
                         }
-                    ]
+                    ]*/
                     }
                 }
             }
@@ -150,7 +152,8 @@ pub fn main() {
         }
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
-    timer.start(TimerMode::Repeated, std::time::Duration::from_millis(200), move || {
+    let mut start_ts = SystemTime::now();
+    timer.start(TimerMode::Repeated, std::time::Duration::from_millis(20), move || {
         let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
         let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
         model.push(Data{ selected: false, grid_col:col as i32, grid_row: row, uid: format!("{0:08x}", count).into()});
@@ -158,6 +161,9 @@ pub fn main() {
         else { col += 1; }
         count += 1;
         ticket_encoded(count);
+        let diff= SystemTime::now().duration_since(start_ts).unwrap().as_millis() as usize;
+        start_ts = SystemTime::now();
+        println!("{diff}ms/paint");
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     handle_clone.unwrap().on_running(move |v| { if v { timer.restart(); } else { timer.stop() } });
