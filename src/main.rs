@@ -74,34 +74,36 @@ slint::slint! {
                         /*preferred-width: 400px;
                         preferred-height: 600px;
                         viewport-width: 400px;
-                        viewport-height: 500px;*/
+                        viewport-height: 500px;
+                        viewport-y: ? ; */
                         for it[ind] in model:
-                        Rectangle {
-                                HorizontalBox {
-                                height: 20px;
-                                for r-ind in [0, 1, 2, 3, 4]:
+                        rb := Rectangle {
+                                property<[int]> r-model: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+                                hb := HorizontalBox {
+                                for r-ind in r-model:
                                 rect := Rectangle {
-                                    height: txt.height;
                                     width: txt.width;
+                                    height: txt.height;
+                                    callback map-ind() -> int;
+                                    map-ind() => { (ind * r-model.length) + r-ind }
                                 property <bool> selected: false;
                                 txt := Text {
-                                    text:  model[(ind * 5) + r-ind].uid;
-                                    visible: true;
-                                    color: model[(ind * 5 + r-ind)].selected ? red : black;
+                                    text:  model[map-ind()].uid;
+                                    color: model[map-ind()].selected ? red : black;
                                 }
                                 touch := TouchArea { clicked => {
-                                    if (model[(ind * 5) + r-ind].selected) {
-                                        model[(ind * 5) + r-ind].selected = false;
+                                    if (model[map-ind()].selected) {
+                                        model[map-ind()].selected = false;
                                         range-select-started-from = -1;
                                         info-hide();
                                     } else {
                                         if (range-select-started-from == -1) {
-                                            range-select-started-from = (ind * 5) + r-ind;
-                                            model[(ind * 5) + r-ind].selected = true;
-                                            info-show((ind * 5) + r-ind, rect.x, rect.y);
+                                            range-select-started-from =  map-ind();
+                                            model[map-ind()].selected = true;
+                                            info-show(map-ind(), rect.x, rect.y);
                                         } else if (range-select-started-from != -1) {
-                                            range-select(range-select-started-from, (ind * 5) + r-ind, true);
-                                            info-show-range(range-select-started-from, (ind * 5) + r-ind);
+                                            range-select(range-select-started-from, map-ind(), true);
+                                            info-show-range(range-select-started-from, map-ind());
                                             range-select-started-from = -1;
                                         }
                                     }
@@ -166,7 +168,7 @@ pub fn main() {
     let mut insert_data = move |print_debug:bool| {
         let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
         let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
-        model.push(Data{ selected: false, grid_col:col as i32, grid_row: row, uid: format!("{0:08x}", count).into()});
+        model.insert(0,Data{ selected: false, grid_col:col as i32, grid_row: row, uid: format!("{0:08x}", count).into()});
         if count % max_growth == max_growth - 1 { row += 1; col = 0; }
         else { col += 1; }
         count += 1;
@@ -179,7 +181,7 @@ pub fn main() {
         let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
         insert_data(false);
     }
-    timer.start(TimerMode::Repeated, std::time::Duration::from_millis(20), move || {
+    timer.start(TimerMode::Repeated, std::time::Duration::from_millis(200), move || {
         insert_data(true);
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
