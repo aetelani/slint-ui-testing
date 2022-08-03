@@ -20,22 +20,21 @@ slint::slint! {
         uid: string,
     }
     Button := Rectangle {
-    property text <=> txt.text;
-    callback clicked <=> touch.clicked;
-    border-radius: height / 2;
-    border-width: 1px;
-    border-color: background.darker(25%);
-    background: touch.pressed ? #6b8282 : touch.has-hover ? #6c616c :  #456;
-    height: txt.preferred-height * 1.33;
-    min-width: txt.preferred-width + 20px;
-    txt := Text {
-        x: (parent.width - width)/2 + (touch.pressed ? 2px : 0);
-        y: (parent.height - height)/2 + (touch.pressed ? 1px : 0);
-        color: touch.pressed ? #fff : #eee;
+        property text <=> txt.text;
+        callback clicked <=> touch.clicked;
+        border-radius: height / 2;
+        border-width: 1px;
+        border-color: background.darker(25%);
+        background: touch.pressed ? #6b8282 : touch.has-hover ? #6c616c :  #456;
+        height: txt.preferred-height * 1.33;
+        min-width: txt.preferred-width + 20px;
+        txt := Text {
+            x: (parent.width - width)/2 + (touch.pressed ? 2px : 0);
+            y: (parent.height - height)/2 + (touch.pressed ? 1px : 0);
+            color: touch.pressed ? #fff : #eee;
+        }
+        touch := TouchArea { }
     }
-    touch := TouchArea { }
-    }
-
     MainWindow := Window {
         //preferred-width: 400px;
         //preferred-height: 600px;
@@ -64,61 +63,55 @@ slint::slint! {
                 Button { text: "Count Selected"; clicked() => { info.text = "Total Selected: " + selection(2); } }
                 info := Text { height: 50px; width: 100px; }
               }
-                sv := ScrollView {
-                    preferred-width: 400px;
-                    preferred-height: 600px;
-                    viewport-width: 400px;
-                    viewport-y: is-running? viewport-height * -1 + 100px : 0px;
-                for it[ind] in model:
-                    rect := Rectangle {
-                        property <bool> selected: false;
-                        x: it.grid-col * 100px;
-                        y: {
-                                sv.viewport-height = it.grid-row * 20px;
-                                Logic.model-remove-rows(0, it.grid-row - 20); // TODO Remove from model if not visible
-                                it.grid-row * 20px }
-                        height: txt.height * 1.1;
-                        width: txt.width * 1.1;
-                        border-width: 1px;
-                        background: white;
-                        txt := Text {
-                            text: model[ind].uid;
-                            visible: true;
-                            color: it.selected ? red : black;
-                        }
-                        touch := TouchArea { clicked => {
-                            if (it.selected) {
-                                it.selected = false;
-                                range-select-started-from = -1;
-                                info-hide();
-                            } else {
-                                if (range-select-started-from == -1) {
-                                    range-select-started-from = ind;
-                                    it.selected = true;
-                                    info-show(ind, rect.x, rect.y);
-                                } else if (range-select-started-from != -1) {
-                                    range-select(range-select-started-from, ind, true);
-                                    info-show-range(range-select-started-from, ind);
-                                    range-select-started-from = -1;
+                sv := ListView {
+                        /*preferred-width: 400px;
+                        preferred-height: 600px;
+                        viewport-width: 400px;
+                        viewport-height: 500px;*/
+                        for it[ind] in model:
+                        rect := Rectangle {
+                                HorizontalBox {
+                                for r-ind in [0, 1, 2, 3, 4]:
+                                Rectangle {
+                                property <bool> selected: false;
+                                txt := Text {
+                                    text:  model[(ind * 5) + r-ind].uid;
+                                    visible: true;
+                                    color: it.selected ? red : black;
+                                }
+                                touch := TouchArea { clicked => {
+                                    if (it.selected) {
+                                        model[ind].selected = false;
+                                        range-select-started-from = -1;
+                                        info-hide();
+                                    } else {
+                                        if (range-select-started-from == -1) {
+                                            range-select-started-from = ind;
+                                            model[ind].selected = true;
+                                            info-show(ind, rect.x, rect.y);
+                                        } else if (range-select-started-from != -1) {
+                                            range-select(range-select-started-from, ind, true);
+                                            info-show-range(range-select-started-from, ind);
+                                            range-select-started-from = -1;
+                                        }
+                                    }
+                                }
+                                }
+                                    states [
+                                        mouse-over when touch.has-hover: {
+                                            background: { lightgrey };
+                                        }
+                                    ]
                                 }
                             }
                         }
                     }
-                        states [
-                            mouse-over when touch.has-hover: {
-                                background: { lightgrey };
-                            }
-                        ]
-                    }
                 }
             }
-        }
         Tab {
             title: "Config";
-            Rectangle { background: lightgray;
-
-                }
-        }
+            Rectangle { background: lightgray; }
+            }
         }
     }
 }
@@ -172,11 +165,11 @@ pub fn main() {
         start_ts = SystemTime::now();
         println!("{count} @ {diff}ms/paint");
     };
-    for _ in 0..900 {
+    for _ in 0..9000 {
         let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
         insert_data();
     }
-    timer.start(TimerMode::Repeated, std::time::Duration::from_millis(200), move || {
+    timer.start(TimerMode::Repeated, std::time::Duration::from_millis(20), move || {
         insert_data();
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
