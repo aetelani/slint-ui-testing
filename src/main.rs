@@ -50,7 +50,14 @@ slint::slint! {
         callback selection(int) -> int;
         info-show(ind,posx,posy) => { info.text = ind + ":(" + posx/1px + "," + posy/1px  + ")"; }
         info-hide() => { info.text = ""; }
-        info-show-range(begin, end) => { info.text = "Range of: " + abs(end - begin + 1); }
+        info-show-range(begin, end) => {
+            if (end > begin) {
+                info.text = "Range of: " + abs(end - begin + 1);
+            } else {
+                info.text = "Range of: " + abs(begin - end + 1);
+            }
+        }
+
         TabWidget {
             Tab {
             title: "Uids";
@@ -69,29 +76,32 @@ slint::slint! {
                         viewport-width: 400px;
                         viewport-height: 500px;*/
                         for it[ind] in model:
-                        rect := Rectangle {
+                        Rectangle {
                                 HorizontalBox {
+                                height: 20px;
                                 for r-ind in [0, 1, 2, 3, 4]:
-                                Rectangle {
+                                rect := Rectangle {
+                                    height: txt.height;
+                                    width: txt.width;
                                 property <bool> selected: false;
                                 txt := Text {
                                     text:  model[(ind * 5) + r-ind].uid;
                                     visible: true;
-                                    color: it.selected ? red : black;
+                                    color: model[(ind * 5 + r-ind)].selected ? red : black;
                                 }
                                 touch := TouchArea { clicked => {
-                                    if (it.selected) {
-                                        model[ind].selected = false;
+                                    if (model[(ind * 5) + r-ind].selected) {
+                                        model[(ind * 5) + r-ind].selected = false;
                                         range-select-started-from = -1;
                                         info-hide();
                                     } else {
                                         if (range-select-started-from == -1) {
-                                            range-select-started-from = ind;
-                                            model[ind].selected = true;
-                                            info-show(ind, rect.x, rect.y);
+                                            range-select-started-from = (ind * 5) + r-ind;
+                                            model[(ind * 5) + r-ind].selected = true;
+                                            info-show((ind * 5) + r-ind, rect.x, rect.y);
                                         } else if (range-select-started-from != -1) {
-                                            range-select(range-select-started-from, ind, true);
-                                            info-show-range(range-select-started-from, ind);
+                                            range-select(range-select-started-from, (ind * 5) + r-ind, true);
+                                            info-show-range(range-select-started-from, (ind * 5) + r-ind);
                                             range-select-started-from = -1;
                                         }
                                     }
@@ -153,7 +163,7 @@ pub fn main() {
     });
     let mut start_ts = SystemTime::now();
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
-    let mut insert_data = move || {
+    let mut insert_data = move |print_debug:bool| {
         let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
         let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
         model.push(Data{ selected: false, grid_col:col as i32, grid_row: row, uid: format!("{0:08x}", count).into()});
@@ -163,14 +173,14 @@ pub fn main() {
         //ticket_encoded(count);
         let diff= SystemTime::now().duration_since(start_ts).unwrap().as_millis() as usize;
         start_ts = SystemTime::now();
-        println!("{count} @ {diff}ms/paint");
+        if print_debug { eprintln!("{count} @ {diff}ms/paint"); }
     };
     for _ in 0..9000 {
         let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
-        insert_data();
+        insert_data(false);
     }
     timer.start(TimerMode::Repeated, std::time::Duration::from_millis(20), move || {
-        insert_data();
+        insert_data(true);
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     handle_clone.unwrap().on_running(move |v| { if v { timer.restart(); } else { timer.stop() } });
