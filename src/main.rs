@@ -215,7 +215,7 @@ pub fn main() {
         } else if v == 2 { // Count selected
             let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
             let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
-            return_count = model.iter().enumerate().filter(|v| v.1.selected).count() as i32;
+            return_count = model.iter().filter(|v| v.selected).count() as i32;
         }
         return_count
 
@@ -244,9 +244,10 @@ fn ticket_encoded(uid: usize) {
 }
 fn create_tables() {
     CONN.with(|conn|{
+        // rowid is serial starting from 1 and filling gaps if deleted
         conn.execute(
             "CREATE TABLE IF NOT EXISTS ticket (\
-            uid INTEGER PRIMARY KEY,\
+            uid INTEGER,\
             data TEXT,
             ts TIMESTAMP DEFAULT(STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')) NOT NULL)",
             (), // empty list of parameters.
