@@ -212,7 +212,6 @@ pub fn main() {
                 model.remove(i);
                 return_count += 1;
             }
-            // Gaps in the list. Redo or repaint
         } else if v == 2 { // Count selected
             let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
             let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
