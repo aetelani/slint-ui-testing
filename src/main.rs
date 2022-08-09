@@ -36,8 +36,8 @@ slint::slint! {
         touch := TouchArea { }
     }
     MainWindow := Window {
-        //preferred-width: 400px;
-        //preferred-height: 600px;
+        preferred-width: 710px;
+        preferred-height: 400px;
         property <[Data]> model: [];
 
         property <int> range-select-started-from: -1;
@@ -71,8 +71,8 @@ slint::slint! {
                 info := Text { height: 50px; width: 100px; }
               }
                 sv := ListView {
-                        /*preferred-width: 400px;
-                        preferred-height: 600px;
+                        /*preferred-width: 500px;
+                        preferred-height: 800px;
                         viewport-width: 400px;
                         viewport-height: 500px;
                         viewport-y: ? ; */
@@ -88,6 +88,8 @@ slint::slint! {
                                     map-ind() => { (ind * r-model.length) + r-ind }
                                 property <bool> selected: false;
                                 txt := Text {
+                                        width: 60px;
+                                        height: 14px;
                                     text:  model[map-ind()].uid;
                                     color: model[map-ind()].selected ? red : black;
                                 }
@@ -177,7 +179,7 @@ pub fn main() {
         start_ts = SystemTime::now();
         if print_debug { eprintln!("{count} @ {diff}ms/paint"); }
     };
-    for _ in 0..9000 {
+    for _ in 0..2000 {
         let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
         insert_data(false);
     }
