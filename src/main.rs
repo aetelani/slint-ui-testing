@@ -244,10 +244,10 @@ fn ticket_encoded(uid: usize) {
 }
 fn create_tables() {
     CONN.with(|conn|{
-        // rowid is serial starting from 1 and filling gaps if deleted
+        // rowid is serial starting from 1 gaps are not filled
         conn.execute(
             "CREATE TABLE IF NOT EXISTS ticket (\
-            uid INTEGER,\
+            uid INTEGER PRIMARY KEY,\
             data TEXT,
             ts TIMESTAMP DEFAULT(STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')) NOT NULL)",
             (), // empty list of parameters.
