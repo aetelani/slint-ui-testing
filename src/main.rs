@@ -55,21 +55,21 @@ slint::slint! {
                         for it[ind] in model:
                         rb := Rectangle {
 // BUG: Cols does not really work as the table is over-indexed with empty text fields
+// Added map-ind constraint but scroll bars are still too big
                                 property<[int]> r-model: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
                                 hb := HorizontalBox {
                                 for r-ind in r-model:
                                 rect := Rectangle {
-                                    width: txt.width;
-                                    height: txt.height;
                                     callback map-ind() -> int;
                                     map-ind() => { (ind * r-model.length) + r-ind }
-                                txt := Text {
+                                if (model.length > map-ind()): txt := Text {
                                         width: 60px; // Perf issue if not defined
                                         height: 14px;
                                     text:  model[map-ind()].uid;
+                                    font-weight: touch.has-hover? 600 : 300;
                                     color: model[map-ind()].selected ? red : black;
-                                }
-                                touch := TouchArea { clicked => {
+                                    touch := TouchArea {
+                                            clicked => {
                                     if (model[map-ind()].selected) {
                                         model[map-ind()].selected = false;
                                         range-select-started-from = -1;
@@ -87,11 +87,7 @@ slint::slint! {
                                     }
                                 }
                                 }
-                                    states [
-                                        mouse-over when touch.has-hover: {
-                                            background: { lightgrey };
-                                        }
-                                    ]
+                                }
                                 }
                             }
                         }
@@ -140,10 +136,10 @@ pub fn main() {
         start_ts = SystemTime::now();
         if print_debug { eprintln!("{count} @ {diff}ms/paint"); }
     };
-    /*for _ in 0..2000 {
+    for _ in 0..2000 {
         let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
         insert_data(false);
-    }*/
+    }
 
     // Start timing
     timer.start(TimerMode::Repeated, std::time::Duration::from_millis(20), move || {
