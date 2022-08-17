@@ -19,22 +19,6 @@ slint::slint! {
         selected: bool,
         uid: string,
     }
-    Button := Rectangle {
-        property text <=> txt.text;
-        callback clicked <=> touch.clicked;
-        border-radius: height / 2;
-        border-width: 1px;
-        border-color: background.darker(25%);
-        background: touch.pressed ? #6b8282 : touch.has-hover ? #6c616c :  #456;
-        height: txt.preferred-height * 1.33;
-        min-width: txt.preferred-width + 20px;
-        txt := Text {
-            x: (parent.width - width)/2 + (touch.pressed ? 2px : 0);
-            y: (parent.height - height)/2 + (touch.pressed ? 1px : 0);
-            color: touch.pressed ? #fff : #eee;
-        }
-        touch := TouchArea { }
-    }
     MainWindow := Window {
         preferred-width: 710px;
         preferred-height: 400px;
@@ -46,7 +30,6 @@ slint::slint! {
         callback info-hide();
         callback info-show-range(int, int);
         callback running(bool);
-        property<bool> is-running: true;
         callback selection(int) -> int;
         info-show(ind,posx,posy) => { info.text = ind + ":(" + posx/1px + "," + posy/1px  + ")"; }
         info-hide() => { info.text = ""; }
@@ -63,19 +46,14 @@ slint::slint! {
             title: "Uids";
                 VerticalBox {
               HorizontalBox {
-                Button { text: "Start"; clicked() => { is-running = true; running(true); } }
-                Button { text: "Stop"; clicked() => { is-running = false; running(false); } }
+                Button { text: "Start"; clicked() => { running(true); } }
+                Button { text: "Stop"; clicked() => { running(false); } }
                 Button { text: "Cleanup Selection"; clicked() => { info.text = "Cleaned: " + selection(0); } }
                 Button { text: "Delete Selection"; clicked() => { info.text = "Deleted: " + selection(1); } }
                 Button { text: "Count Selected"; clicked() => { info.text = "Total Selected: " + selection(2); } }
                 info := Text { height: 50px; width: 100px; }
               }
                 sv := ListView {
-                        /*preferred-width: 500px;
-                        preferred-height: 800px;
-                        viewport-width: 400px;
-                        viewport-height: 500px;
-                        viewport-y: ? ; */
                         for it[ind] in model:
                         rb := Rectangle {
                                 property<[int]> r-model: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -88,7 +66,7 @@ slint::slint! {
                                     map-ind() => { (ind * r-model.length) + r-ind }
                                 property <bool> selected: false;
                                 txt := Text {
-                                        width: 60px;
+                                        width: 60px; // Perf issue if not defined
                                         height: 14px;
                                     text:  model[map-ind()].uid;
                                     color: model[map-ind()].selected ? red : black;
@@ -183,8 +161,8 @@ pub fn main() {
         let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
         insert_data(false);
     }
-    timer.start(TimerMode::Repeated, std::time::Duration::from_millis(200), move || {
-        insert_data(true);
+    timer.start(TimerMode::Repeated, std::time::Duration::from_millis(20), move || {
+        insert_data(false);
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     handle_clone.unwrap().on_running(move |v| { if v { timer.restart(); } else { timer.stop() } });
@@ -247,14 +225,24 @@ fn create_tables() {
         // rowid is serial starting from 1 gaps are not filled
         conn.execute(
             "CREATE TABLE IF NOT EXISTS ticket (\
-            uid INTEGER PRIMARY KEY,\
-            data TEXT,
+            uid INTEGER NOT NULL PRIMARY KEY,\
+            sn INTEGER NOT NULL UNIQUE,\
+            data TEXT, \
             ts TIMESTAMP DEFAULT(STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')) NOT NULL)",
+            (), // empty list of parameters.
+        ).unwrap();
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS sn_pool (\
+            sn INTEGER NOT NULL PRIMARY KEY)",
             (), // empty list of parameters.
         ).unwrap();
         // Much faster when sorting with ts
         conn.execute(
             "CREATE INDEX IF NOT EXISTS ticket_ts_idx ON ticket (ts)",
+            (), // empty list of parameters.
+        ).unwrap();
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS ticket_ts_idx ON ticket (sn)",
             (), // empty list of parameters.
         ).unwrap();
     });
