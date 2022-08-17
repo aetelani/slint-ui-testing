@@ -54,6 +54,7 @@ slint::slint! {
                 sv := ListView {
                         for it[ind] in model:
                         rb := Rectangle {
+// BUG: Cols does not really work as the table is over-indexed with empty text fields
                                 property<[int]> r-model: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
                                 hb := HorizontalBox {
                                 for r-ind in r-model:
@@ -62,7 +63,6 @@ slint::slint! {
                                     height: txt.height;
                                     callback map-ind() -> int;
                                     map-ind() => { (ind * r-model.length) + r-ind }
-                                property <bool> selected: false;
                                 txt := Text {
                                         width: 60px; // Perf issue if not defined
                                         height: 14px;
@@ -107,6 +107,7 @@ slint::slint! {
 }
 thread_local! {
     static CONN: Connection = Connection::open_in_memory().unwrap();
+    static START_TS: SystemTime = SystemTime::now();
 }
 
 #[cfg_attr(target_arch = "wasm32-wasi",
@@ -139,10 +140,10 @@ pub fn main() {
         start_ts = SystemTime::now();
         if print_debug { eprintln!("{count} @ {diff}ms/paint"); }
     };
-    for _ in 0..2000 {
+    /*for _ in 0..2000 {
         let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
         insert_data(false);
-    }
+    }*/
 
     // Start timing
     timer.start(TimerMode::Repeated, std::time::Duration::from_millis(20), move || {
