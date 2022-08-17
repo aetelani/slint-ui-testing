@@ -120,26 +120,7 @@ pub fn main() {
     create_tables();
 
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
-    handle_clone.unwrap().on_range_select(move |b: i32, e: i32, mode: bool|{
-        let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
-        // range does not work this way so normalizing up selected
-        let range: RangeInclusive<usize>;
-        if b > e {
-            range= e as usize ..=b as usize;
-        } else {
-            range = b as usize ..=e as usize;
-        }
-        let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
-        for i in range {
-            let data_maybe: Option<Data> = model.row_data(i as usize);
-            if let Some(mut data) = data_maybe {
-                data.selected = mode;
-                model.set_row_data(i as usize, data);
-            } else {
-                dbg!("failed update ind:", i);
-            }
-        }
-    });
+    handle_clone.unwrap().on_range_select(on_range_select_handler(handle_clone));
 
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     handle_clone.unwrap().on_selection(on_selection_handler(handle_clone));
@@ -207,6 +188,29 @@ fn on_selection_handler(handle_clone: Weak<MainWindow>) -> impl FnMut(i32) -> i3
     }
 }
 
+fn on_range_select_handler(handle_clone: Weak<MainWindow>) -> impl FnMut(i32, i32, bool) {
+    move |b: i32, e: i32, mode: bool| {
+        let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
+        // range does not work this way so normalizing up selected
+        let range: RangeInclusive<usize>;
+        if b > e {
+            range= e as usize ..=b as usize;
+        } else {
+            range = b as usize ..=e as usize;
+        }
+        let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
+        for i in range {
+            let data_maybe: Option<Data> = model.row_data(i as usize);
+            if let Some(mut data) = data_maybe {
+                data.selected = mode;
+                model.set_row_data(i as usize, data);
+            } else {
+                dbg!("failed update ind:", i);
+            }
+        }
+    }
+}
+
 fn dump_head_ticket() {
     CONN.with(|conn| {
         let mut stmt = conn.prepare("SELECT uid, ts FROM ticket ORDER BY ts DESC LIMIT 1 ").unwrap();
@@ -225,6 +229,7 @@ fn ticket_encoded(uid: usize) {
         ).unwrap();
     });
 }
+
 fn create_tables() {
     CONN.with(|conn|{
         // rowid is serial starting from 1 gaps are not filled
