@@ -1,7 +1,7 @@
 // Copyright (C) 2022 Anssi Eteläniemi <aetelani@hotmail.com>
 use std::ops::{Deref, RangeInclusive};
 use std::time::SystemTime;
-use slint::{FilterModel, Model, ModelExt, ModelRc, RenderingNotifier, VecModel};
+use slint::{FilterModel, Model, ModelExt, ModelRc, RenderingNotifier, VecModel, Weak};
 use slint::{Timer, TimerMode};
 use rusqlite::{Connection, Result};
 
@@ -14,8 +14,6 @@ slint::slint! {
     }
 
     export struct Data := {
-        grid-col: int,
-        grid-row: int,
         selected: bool,
         uid: string,
     }
@@ -116,13 +114,12 @@ wasm_bindgen::prelude::wasm_bindgen(start))]
 pub fn main() {
     let handle: MainWindow = MainWindow::new();
     let handle_weak = handle.as_weak();
-    let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     let timer = Timer::default();
-    let mut row: i32 = 0;
-    let mut col: i32 = 0;
-    let mut count: usize = 0;
-    let max_growth = 5usize;
+
+    // Init database
     create_tables();
+
+    let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     handle_clone.unwrap().on_range_select(move |b: i32, e: i32, mode: bool|{
         let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
         // range does not work this way so normalizing up selected
@@ -143,14 +140,18 @@ pub fn main() {
             }
         }
     });
+
+    let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
+    handle_clone.unwrap().on_selection(on_selection_handler(handle_clone));
+
+    // Populate data
+    let mut count: usize = 0; // Used as UID
     let mut start_ts = SystemTime::now();
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     let mut insert_data = move |print_debug:bool| {
         let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
         let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
-        model.insert(0,Data{ selected: false, grid_col:col as i32, grid_row: row, uid: format!("{0:08x}", count).into()});
-        if count % max_growth == max_growth - 1 { row += 1; col = 0; }
-        else { col += 1; }
+        model.insert(0,Data{ selected: false, uid: format!("{0:08x}", count).into()});
         count += 1;
         //ticket_encoded(count);
         let diff= SystemTime::now().duration_since(start_ts).unwrap().as_millis() as usize;
@@ -161,14 +162,21 @@ pub fn main() {
         let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
         insert_data(false);
     }
+
+    // Start timing
     timer.start(TimerMode::Repeated, std::time::Duration::from_millis(20), move || {
         insert_data(false);
     });
     let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
     handle_clone.unwrap().on_running(move |v| { if v { timer.restart(); } else { timer.stop() } });
-    let handle_clone: slint::Weak<MainWindow> = handle_weak.clone();
-    handle_clone.unwrap().on_selection(move |v| {
-        let mut return_count:i32 = 0;
+
+    // Main loop
+    handle.run();
+}
+
+fn on_selection_handler(handle_clone: Weak<MainWindow>) -> impl FnMut(i32) -> i32 {
+    move |v| {
+        let mut return_count: i32 = 0;
         if v == 0 { // Unselect
             let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
             let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
@@ -184,7 +192,7 @@ pub fn main() {
             let model_handle: ModelRc<Data> = handle_clone.unwrap().get_model();
             let model: &VecModel<Data> = model_handle.as_any().downcast_ref::<VecModel<Data>>().unwrap();
             let mut idx: Vec<usize> = vec![];
-            model.iter().enumerate().filter(|v| v.1.selected).for_each(|(i,_)| idx.push(i));
+            model.iter().enumerate().filter(|v| v.1.selected).for_each(|(i, _)| idx.push(i));
             idx.reverse();
             for i in idx {
                 model.remove(i);
@@ -196,10 +204,7 @@ pub fn main() {
             return_count = model.iter().filter(|v| v.selected).count() as i32;
         }
         return_count
-
-    });
-
-    handle.run();
+    }
 }
 
 fn dump_head_ticket() {
